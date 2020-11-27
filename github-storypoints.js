@@ -48,6 +48,7 @@ var addStoryPointsForColumn = (column) => {
   const columnCards = Array
     .from(column.getElementsByClassName('issue-card'))
     .filter(card => !card.classList.contains('sortable-ghost'))
+    .filter(card => getComputedStyle(card).getPropertyValue('display') != 'none')
     .map(card => {
       const labels = Array
         .from(card.getElementsByClassName('labels'));
