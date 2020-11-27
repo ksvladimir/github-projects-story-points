@@ -1,7 +1,7 @@
 (function (d, w) {
 'use strict';
 
-var estimateRegEx = /^size: ([\d\.]+)$/im;
+var estimateRegEx = /^effort: ([\d\.]+)$/im;
 
 var debounce = function (func, wait, immediate) {
   var timeout;
@@ -38,7 +38,7 @@ var resetStoryPointsForColumn = (column) => {
 var titleWithTotalPoints = (title, points, unestimated) => {
     let summary = `${points} pts`;
     if (unestimated > 0) {
-      summary += `, ${unestimated} unsized`;
+      summary = summary + `, ${unestimated} unestimated`;
     }
 
     return `${title} <span class="github-project-story-points" style="font-size:xx-small">(${summary})</span>`;
