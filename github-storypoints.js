@@ -60,21 +60,15 @@ var addStoryPointsForColumn = (column) => {
     .filter(card => !card.classList.contains('sortable-ghost'))
     .map(card => {
       const labels = Array
-        .from(card.getElementsByClassName('labels'))
+        .from(card.getElementsByClassName('labels'));
 
-      const estimateLabels = Array
+      const estimates = Array
         .from(card.getElementsByClassName('issue-card-label'))
-        .filter(label => label.innerText.includes('estimate'))
+        .map(label => parseFloat((label.innerText.trim().match(estimateRegEx) || [null, ''])[1]))
+        .filter(x => !isNaN(x));
 
-      const firstEstimateText = (
-        estimateLabels.length > 0 ? estimateLabels[0].innerText.trim() : null)
-
-      const match = (
-        estimateRegEx.exec(firstEstimateText) ||
-        [null, '0'])
-
-      const storyPoints = parseFloat(match[1]) || 0;
-      const estimated = (match[0] !== null);
+      const estimated = estimates.length > 0;
+      const storyPoints = estimates.reduce((x, y) => x + y, 0);
 
       return {
         element: card,
