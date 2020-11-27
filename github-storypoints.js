@@ -1,7 +1,7 @@
 (function (d, w) {
 'use strict';
 
-var estimateRegEx = /^estimate: ([\d\.]+)$/im;
+var estimateRegEx = /^size: ([\d\.]+)$/im;
 
 var debounce = function (func, wait, immediate) {
   var timeout;
@@ -36,22 +36,12 @@ var resetStoryPointsForColumn = (column) => {
 };
 
 var titleWithTotalPoints = (title, points, unestimated) => {
-    let unestimated_element = "";
-    let points_element = "";
-
+    let summary = `${points} pts`;
     if (unestimated > 0) {
-      unestimated_element = `${unestimated} missing estimate`;
+      summary += `, ${unestimated} unsized`;
     }
 
-    if (points > 0) {
-      points_element = `${points} points`;
-    }
-
-    if (points_element && unestimated_element) {
-      unestimated_element = `, ${unestimated_element}`;
-    }
-
-    return `${title} card${pluralize(title)} <span class="github-project-story-points" style="font-size:xx-small">(${points_element}${unestimated_element})</span>`;
+    return `${title} <span class="github-project-story-points" style="font-size:xx-small">(${summary})</span>`;
 };
 
 var addStoryPointsForColumn = (column) => {
