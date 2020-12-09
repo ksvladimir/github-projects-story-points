@@ -50,11 +50,8 @@ var addStoryPointsForColumn = (column) => {
     .filter(card => !card.classList.contains('sortable-ghost'))
     .filter(card => getComputedStyle(card).getPropertyValue('display') != 'none')
     .map(card => {
-      const labels = Array
-        .from(card.getElementsByClassName('labels'));
-
       const estimates = Array
-        .from(card.getElementsByClassName('issue-card-label'))
+        .from(card.getElementsByClassName('IssueLabel'))
         .map(label => parseFloat((label.innerText.trim().match(estimateRegEx) || [null, ''])[1]))
         .filter(x => !isNaN(x));
 
