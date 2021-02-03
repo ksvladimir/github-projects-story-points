@@ -1,7 +1,7 @@
 (function (d, w) {
 'use strict';
 
-var estimateRegEx = /^effort: ([\d\.]+)$/im;
+var estimateRegEx = /^([\d\.]+) pt$/im;
 
 var debounce = function (func, wait, immediate) {
   var timeout;
@@ -93,17 +93,18 @@ var start = debounce(() => {
     const project = projects[0];
     const columns = Array.from(project.getElementsByClassName('js-project-column')); // Was 'col-project-custom', but that's gitenterprise; github.com is 'project-column', fortunately, both have 'js-project-column'
     for (let column of columns) {
+      const columnArea = Array.from(column.getElementsByClassName('js-project-column-cards'))[0];
       const addStoryPoints = ((c) => debounce(() => {
         resetStoryPointsForColumn(c);
         addStoryPointsForColumn(c);
       }, 50))(column);
-      column.addEventListener('DOMSubtreeModified', addStoryPoints);
-      column.addEventListener('drop', addStoryPoints);
+      columnArea.addEventListener('DOMSubtreeModified', addStoryPoints);
+      columnArea.addEventListener('drop', addStoryPoints);
       addStoryPointsForColumn(column);
       resets.push(((c) => () => {
         resetStoryPointsForColumn(c);
-        column.removeEventListener('DOMSubtreeModified', addStoryPoints);
-        column.removeEventListener('drop', addStoryPoints);
+        columnArea.removeEventListener('DOMSubtreeModified', addStoryPoints);
+        columnArea.removeEventListener('drop', addStoryPoints);
       })(column));
     }
   }
