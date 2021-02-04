@@ -2,6 +2,12 @@
 'use strict';
 
 var estimateRegEx = /^([\d\.]+) pt$/im;
+const backlogColumn = '📒 Backlog';
+const activeColumns = ['📅 Planned', '🚧 In progress', '🔬 In QA'];
+
+const githubCredentials = new Promise(resolve => {
+  chrome.storage.sync.get({ githubUser: '', githubToken: '' }, items => resolve(items));
+});
 
 var debounce = function (func, wait, immediate) {
   var timeout;
@@ -21,6 +27,79 @@ var debounce = function (func, wait, immediate) {
 var pluralize = (value) => (
   value === 1 ? '' : 's'
 );
+
+const getColumnCards = (column) => {
+  return Array
+    .from(column.getElementsByClassName('issue-card'))
+    .filter(card => !card.classList.contains('sortable-ghost'))
+    .filter(card => getComputedStyle(card).getPropertyValue('display') != 'none');
+}
+
+const moveTo = (card_id, position) => async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  e.target.innerHTML = '⏳';
+
+  const { githubUser, githubToken } = await githubCredentials;
+  if (!githubUser || !githubToken) {
+    alert('please set github credentials in Github Projects Story Points settings');
+    return;
+  }
+
+  const res = await fetch(
+    `https://api.github.com/projects/columns/cards/${card_id}/moves`, {
+      headers: {
+        'Authorization': 'Basic ' + btoa(githubUser + ":" + githubToken),
+        'Accept': 'application/vnd.github.inertia-preview+json',
+      },
+      method: 'POST',
+      body: JSON.stringify({ position }),
+    }
+  );
+  if (!res.ok) {
+    console.error(`Github API error: ${res.statusTest}\n${await res.text()}`);
+    alert(`Github API error: ${res.statusTest}`);
+  } else {
+    /*
+    const parentNode = card.parentNode;
+    if (parentNode && position === 'top') {
+      parentNode.prepend(card);
+    } else if (parentNode && position === 'bottom') {
+      parentNode.insertBefore(card, null);
+    }
+    */
+  }
+
+  return false;
+}
+
+const addCardButtonsForColumn = (column) => {
+  const cards = getColumnCards(column);
+
+  cards
+    .filter(card => card.querySelectorAll('.gpsp-card-button').length == 0)
+    .forEach(card => {
+      const addButton = (text, dir) => {
+        const button = d.createElement('div');
+        button.classList.add('gpsp-card-button');
+        button.innerText = text;
+        card.querySelector('.card-octicon').append(button);
+        button.addEventListener('click', moveTo(card.dataset.cardId, dir), {capture: true});
+        button.addEventListener('mousedown', e => { e.preventDefault(); }, {capture: true});
+      };
+      if (card !== cards[0]) {
+        addButton('↑', 'top');
+      }
+      if (card !== cards[cards.length - 1]) {
+        addButton('↓', 'bottom');
+      }
+    });
+
+};
+
+const resetCardButtonsForColumn = (column) => {
+  column.querySelectorAll('.gpsp-card-button').forEach(el => el.remove());
+};
 
 var resetStoryPointsForColumn = (column) => {
   const customElements = Array.from(column.getElementsByClassName('github-project-story-points'));
@@ -48,8 +127,6 @@ var titleWithTotalPoints = (title, points, unestimated) => {
   return `${title} <span class="github-project-story-points" style="font-size:xx-small">(${summary})</span>`;
 };
 
-const activeColumns = ['📅 Planned', '🚧 In progress', '🔬 In QA'];
-
 var updateTotalStoryPoints = () => {
   const project = d.getElementsByClassName('project-columns-container')[0];
   const columns = Array.from(project.getElementsByClassName('js-project-column')); // Was 'col-project-custom', but that's gitenterprise; github.com is 'project-column', fortunately, both have 'js-project-column'
@@ -59,8 +136,8 @@ var updateTotalStoryPoints = () => {
   for (let column of columns) {
     const titleElement = column.getElementsByClassName('js-project-column-name')[0];
     if (activeColumns.includes(titleElement.innerText)) {
-      points += parseFloat(titleElement.dataset._extension_storyPoints || 0);
-      unestimated += parseFloat(titleElement.dataset._extension_unestimated || 0);
+      points += parseFloat(titleElement.dataset.gpspStoryPoints || 0);
+      unestimated += parseFloat(titleElement.dataset.gpspUnestimated || 0);
     }
   }
 
@@ -77,10 +154,7 @@ var updateTotalStoryPoints = () => {
 };
 
 var addStoryPointsForColumn = (column) => {
-  const columnCards = Array
-    .from(column.getElementsByClassName('issue-card'))
-    .filter(card => !card.classList.contains('sortable-ghost'))
-    .filter(card => getComputedStyle(card).getPropertyValue('display') != 'none')
+  const columnCards = getColumnCards(column)
     .map(card => {
       const estimates = Array
         .from(card.getElementsByClassName('IssueLabel'))
@@ -109,8 +183,8 @@ var addStoryPointsForColumn = (column) => {
   const columnCountElement = column.getElementsByClassName('js-column-card-count')[0];
   const titleElement = column.getElementsByClassName('js-project-column-name')[0];
   columnCountElement.innerHTML = titleWithTotalPoints(columnCards.length, columnStoryPoints, columnUnestimated);
-  titleElement.dataset._extension_storyPoints = columnStoryPoints;
-  titleElement.dataset._extension_unestimated = columnUnestimated;
+  titleElement.dataset.gpspStoryPoints = columnStoryPoints;
+  titleElement.dataset.gpspUnestimated = columnUnestimated;
 
   updateTotalStoryPoints();
 };
@@ -133,11 +207,16 @@ var start = debounce(() => {
       const addStoryPoints = ((c) => debounce(() => {
         resetStoryPointsForColumn(c);
         addStoryPointsForColumn(c);
+        addCardButtonsForColumn(c);
       }, 50))(column);
       columnArea.addEventListener('DOMSubtreeModified', addStoryPoints);
       columnArea.addEventListener('drop', addStoryPoints);
+
       addStoryPointsForColumn(column);
+      addCardButtonsForColumn(column);
+
       resets.push(((c) => () => {
+        resetCardButtonsForColumn(c);
         resetStoryPointsForColumn(c);
         columnArea.removeEventListener('DOMSubtreeModified', addStoryPoints);
         columnArea.removeEventListener('drop', addStoryPoints);
@@ -160,7 +239,25 @@ w.addEventListener('statechange', () => setTimeout(() => {
   start();
 }, 500));
 
+const addStyle = () => {
+  const sheet = document.createElement('style');
+  sheet.innerHTML = `
+    .gpsp-card-button {
+      visibility: hidden;
+      width: 16px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .issue-card:hover .gpsp-card-button {
+      visibility: visible;
+    }
+  `;
+  document.body.appendChild(sheet);
+};
+
 // First start
 start();
+
+addStyle();
 
 })(document, window);

@@ -25,5 +25,12 @@
     "24": "github-storypoints-icon-24.png",
     "48": "github-storypoints-icon-48.png",
     "128": "github-storypoints-icon-128.png"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
   }
 }
