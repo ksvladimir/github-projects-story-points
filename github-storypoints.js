@@ -36,12 +36,44 @@ var resetStoryPointsForColumn = (column) => {
 };
 
 var titleWithTotalPoints = (title, points, unestimated) => {
-    let summary = `${points} pts`;
-    if (unestimated > 0) {
-      summary = summary + `, ${unestimated} unestimated`;
-    }
+  if (!points && !unestimated) {
+    return title;
+  }
 
-    return `${title} <span class="github-project-story-points" style="font-size:xx-small">(${summary})</span>`;
+  let summary = `${points} pts`;
+  if (unestimated > 0) {
+    summary = summary + `, ${unestimated} unestimated`;
+  }
+
+  return `${title} <span class="github-project-story-points" style="font-size:xx-small">(${summary})</span>`;
+};
+
+const activeColumns = ['📅 Planned', '🚧 In progress', '🔬 In QA'];
+
+var updateTotalStoryPoints = () => {
+  const project = d.getElementsByClassName('project-columns-container')[0];
+  const columns = Array.from(project.getElementsByClassName('js-project-column')); // Was 'col-project-custom', but that's gitenterprise; github.com is 'project-column', fortunately, both have 'js-project-column'
+
+  let points = 0;
+  let unestimated = 0;
+  for (let column of columns) {
+    const titleElement = column.getElementsByClassName('js-project-column-name')[0];
+    if (activeColumns.includes(titleElement.innerText)) {
+      points += parseFloat(titleElement.dataset._extension_storyPoints || 0);
+      unestimated += parseFloat(titleElement.dataset._extension_unestimated || 0);
+    }
+  }
+
+  let summary = `active issues: ${points} pts`;
+  if (unestimated > 0) {
+    summary = summary + `, ${unestimated} unestimated`;
+  }
+
+  // Apply DOM changes:
+  const projectTitle = d.querySelector('[data-hovercard-type=project]');
+  const pointsElement = projectTitle.querySelector('.github-project-story-points') ||
+    projectTitle.appendChild(document.createElement('span'));
+  pointsElement.outerHTML = `<span class="github-project-story-points">(${summary})</span>`;
 };
 
 var addStoryPointsForColumn = (column) => {
@@ -64,7 +96,6 @@ var addStoryPointsForColumn = (column) => {
         storyPoints
       };
     });
-  const columnCountElement = column.getElementsByClassName('js-column-card-count')[0];
 
   let columnStoryPoints = 0;
   let columnUnestimated = 0;
@@ -73,10 +104,15 @@ var addStoryPointsForColumn = (column) => {
     columnStoryPoints += card.storyPoints;
     columnUnestimated += (card.estimated ? 0 : 1);
   }
+
   // Apply DOM changes:
-  if (columnStoryPoints || columnUnestimated) {
-    columnCountElement.innerHTML = titleWithTotalPoints(columnCards.length, columnStoryPoints, columnUnestimated);
-  }
+  const columnCountElement = column.getElementsByClassName('js-column-card-count')[0];
+  const titleElement = column.getElementsByClassName('js-project-column-name')[0];
+  columnCountElement.innerHTML = titleWithTotalPoints(columnCards.length, columnStoryPoints, columnUnestimated);
+  titleElement.dataset._extension_storyPoints = columnStoryPoints;
+  titleElement.dataset._extension_unestimated = columnUnestimated;
+
+  updateTotalStoryPoints();
 };
 
 var resets = [];
