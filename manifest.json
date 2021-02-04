@@ -7,7 +7,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*/*/projects/*"
+        "https://github.com/*/projects/*"
       ],
       "include_globs": [
         "*/projects/*"
