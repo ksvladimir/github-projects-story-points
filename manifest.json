@@ -3,7 +3,7 @@
   "short_name": "GitHub Projects Story Points",
   "description": "Add story points to GitHub project lists by reading labels. Forked from https://github.com/brthrs/github-project-story-points",
   "version": "1.1.0",
-  "author": "Nicola Peduzzi, Connor McArthur",
+  "author": "Nicola Peduzzi, Connor McArthur, Volodymyr Kuznetsov",
   "content_scripts": [
     {
       "matches": [
@@ -14,6 +14,15 @@
       ],
       "js": [
         "github-storypoints.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://github.com/*/issues/*"
+      ],
+      "js": [
+        "github-issues.js"
       ],
       "run_at": "document_idle"
     }
