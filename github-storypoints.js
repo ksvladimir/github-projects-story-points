@@ -77,22 +77,22 @@ const addCardButtonsForColumn = (column) => {
   const cards = getColumnCards(column);
 
   cards
-    .filter(card => card.querySelectorAll('.gpsp-card-button').length == 0)
+    .filter(card => card.querySelectorAll('.gpsp-card-buttons').length == 0)
     .forEach(card => {
+      const buttons = d.createElement('div');
+      buttons.classList.add('gpsp-card-buttons');
+
       const addButton = (text, dir) => {
         const button = d.createElement('div');
-        button.classList.add('gpsp-card-button');
         button.innerText = text;
-        card.querySelector('.card-octicon').append(button);
         button.addEventListener('click', moveTo(card.dataset.cardId, dir), {capture: true});
         button.addEventListener('mousedown', e => { e.preventDefault(); }, {capture: true});
+        buttons.append(button);
       };
-      if (card !== cards[0]) {
-        addButton('↑', 'top');
-      }
-      if (card !== cards[cards.length - 1]) {
-        addButton('↓', 'bottom');
-      }
+      addButton('↑', 'top');
+      addButton('↓', 'bottom');
+
+      card.append(buttons);
     });
 
 };
@@ -242,13 +242,21 @@ w.addEventListener('statechange', () => setTimeout(() => {
 const addStyle = () => {
   const sheet = document.createElement('style');
   sheet.innerHTML = `
-    .gpsp-card-button {
+    .gpsp-card-buttons {
       visibility: hidden;
+      position: absolute;
+      top: 24px;
+      right: 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .gpsp-card-buttons div {
       width: 16px;
       text-align: center;
       cursor: pointer;
     }
-    .issue-card:hover .gpsp-card-button {
+    .issue-card:hover .gpsp-card-buttons {
       visibility: visible;
     }
   `;
