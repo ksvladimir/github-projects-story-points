@@ -104,13 +104,20 @@ const addStyle = () => {
     }
   `;
   document.body.appendChild(sheet);
+
 };
 
 addStyle();
 addProjectButtons();
 
-window.addEventListener('statechange', () => setTimeout(() => { addProjectButtons }));
-document.querySelector('.js-check-all-container')
-  .addEventListener('DOMSubtreeModified', debounce(() => addProjectButtons(), 50));
+window.addEventListener('statechange', () => setTimeout(() => {
+  addStyle();
+  addProjectButtons();
+}, 500));
+
+const container = document.querySelector('.js-check-all-container');
+if (container) {
+  container.addEventListener('DOMSubtreeModified', debounce(() => addProjectButtons(), 50));
+}
 
 })();

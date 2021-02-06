@@ -4,6 +4,7 @@
 var estimateRegEx = /^([\d\.]+) pt$/im;
 const backlogColumn = '📒 Backlog';
 const activeColumns = ['📅 Planned', '🚧 In progress', '🔬 In QA'];
+const closedColumns = ['📦 Done', '✅ Accepted'];
 
 const githubCredentials = new Promise(resolve => {
   chrome.storage.sync.get({ githubUser: '', githubToken: '' }, items => resolve(items));
@@ -131,19 +132,28 @@ var updateTotalStoryPoints = () => {
   const project = d.getElementsByClassName('project-columns-container')[0];
   const columns = Array.from(project.getElementsByClassName('js-project-column')); // Was 'col-project-custom', but that's gitenterprise; github.com is 'project-column', fortunately, both have 'js-project-column'
 
-  let points = 0;
-  let unestimated = 0;
+  const active = { points: 0, unestimated: 0 }, closed = { points: 0, unestimated: 0};
   for (let column of columns) {
     const titleElement = column.getElementsByClassName('js-project-column-name')[0];
+    let counter;
     if (activeColumns.includes(titleElement.innerText)) {
-      points += parseFloat(titleElement.dataset.gpspStoryPoints || 0);
-      unestimated += parseFloat(titleElement.dataset.gpspUnestimated || 0);
+      counter = active;
+    } else if (closedColumns.includes(titleElement.innerText)) {
+      counter = closed;
+    } else {
+      continue;
     }
+    counter.points += parseFloat(titleElement.dataset.gpspStoryPoints || 0);
+    counter.unestimated += parseFloat(titleElement.dataset.gpspUnestimated || 0);
   }
 
-  let summary = `active issues: ${points} pts`;
-  if (unestimated > 0) {
-    summary = summary + `, ${unestimated} unestimated`;
+  let summary = `active: ${active.points} pts`;
+  if (active.unestimated > 0) {
+    summary += `, ${active.unestimated} unestimated`;
+  }
+  summary += `; closed: ${closed.points} pts`;
+  if (closed.cunestimated > 0) {
+    summary += `, ${closed.unestimated} unestimated`;
   }
 
   // Apply DOM changes:
