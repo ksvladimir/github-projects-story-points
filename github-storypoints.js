@@ -157,7 +157,7 @@ var updateTotalStoryPoints = () => {
   }
 
   // Apply DOM changes:
-  const projectTitle = d.querySelector('[data-hovercard-type=project]');
+  const projectTitle = d.querySelector('.project-header .js-project-hovercard .js-project-name-label');
   const pointsElement = projectTitle.querySelector('.github-project-story-points') ||
     projectTitle.appendChild(document.createElement('span'));
   pointsElement.outerHTML = `<span class="github-project-story-points">(${summary})</span>`;
@@ -268,6 +268,9 @@ const addStyle = () => {
     }
     .issue-card:hover .gpsp-card-buttons {
       visibility: visible;
+    }
+    .github-project-story-points {
+      font-weight: 400;
     }
   `;
   document.body.appendChild(sheet);
