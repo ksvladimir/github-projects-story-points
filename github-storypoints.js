@@ -1,8 +1,7 @@
-(function (d, w) {
+(function() {
 'use strict';
 
 var estimateRegEx = /^([\d\.]+) pt$/im;
-const backlogColumn = '📒 Backlog';
 const activeColumns = ['📅 Planned', '🚧 In progress', '🔬 In QA'];
 const closedColumns = ['📦 Done', '✅ Accepted'];
 
@@ -10,24 +9,18 @@ const githubCredentials = new Promise(resolve => {
   chrome.storage.sync.get({ githubUser: '', githubToken: '' }, items => resolve(items));
 });
 
-var debounce = function (func, wait, immediate) {
-  var timeout;
+const debounce = function (func, wait) {
+  let timeout;
   return function() {
-    var context = this, args = arguments;
-    var later = function() {
+    const context = this, args = arguments;
+    const later = function() {
       timeout = null;
-      if (!immediate) func.apply(context, args);
+      func.apply(context, args);
     };
-    var callNow = immediate && !timeout;
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
-    if (callNow) func.apply(context, args);
   };
 };
-
-var pluralize = (value) => (
-  value === 1 ? '' : 's'
-);
 
 const getColumnCards = (column) => {
   return Array
@@ -75,16 +68,14 @@ const moveTo = (card_id, position) => async (e) => {
 }
 
 const addCardButtonsForColumn = (column) => {
-  const cards = getColumnCards(column);
-
-  cards
+  getColumnCards(column)
     .filter(card => card.querySelectorAll('.gpsp-card-buttons').length == 0)
     .forEach(card => {
-      const buttons = d.createElement('div');
+      const buttons = document.createElement('div');
       buttons.classList.add('gpsp-card-buttons');
 
       const addButton = (text, dir) => {
-        const button = d.createElement('div');
+        const button = document.createElement('div');
         button.innerText = text;
         button.addEventListener('click', moveTo(card.dataset.cardId, dir), {capture: true});
         button.addEventListener('mousedown', e => { e.preventDefault(); }, {capture: true});
@@ -98,156 +89,153 @@ const addCardButtonsForColumn = (column) => {
 
 };
 
-const resetCardButtonsForColumn = (column) => {
-  column.querySelectorAll('.gpsp-card-button').forEach(el => el.remove());
-};
+// extract story points for all visible issues
+const extractStoryPoints = () => {
+  const result = [];
 
-var resetStoryPointsForColumn = (column) => {
-  const customElements = Array.from(column.getElementsByClassName('github-project-story-points'));
-  for (let e of customElements) {
-    const parent = e.parentNode;
-    if (parent.dataset.gpspOriginalContent) {
-      parent.innerText = parent.dataset.gpspOriginalContent;
-      delete parent.dataset.gpspOriginalContent;
-    } else {
-      parent.removeChild(e);
-    }
-  }
-};
+  const project = document.querySelector('.project-columns-container');
+  const columns = project.querySelectorAll('.js-project-column');
+  for (const columnElement of columns) {
+    const column = {
+      name: columnElement.getElementsByClassName('js-project-column-name')[0].innerText,
+      element: columnElement,
+    };
 
-var titleWithTotalPoints = (title, points, unestimated) => {
-  if (!points && !unestimated) {
-    return title;
-  }
+    const cards = getColumnCards(columnElement);
+    for (const card of cards) {
+      const issueNumberEl = card.querySelectorAll('.js-issue-number');
+      if (issueNumberEl.length !== 1) {
+        continue; // this is a note
+      }
+      const number = issueNumberEl[0].innerText;
+      const assigneeButtons = [...card.querySelectorAll('button[data-card-filter^="assignee:"]')];
+      const assignees = assigneeButtons.map(el => ({
+        name: el.dataset.cardFilter.substring("assignee:".length), button: el,
+      }));
 
-  let summary = `${points} pts`;
-  if (unestimated > 0) {
-    summary = summary + `, ${unestimated} unestimated`;
-  }
-
-  return `${title} <span class="github-project-story-points" style="font-size:xx-small">(${summary})</span>`;
-};
-
-var updateTotalStoryPoints = () => {
-  const project = d.getElementsByClassName('project-columns-container')[0];
-  const columns = Array.from(project.getElementsByClassName('js-project-column')); // Was 'col-project-custom', but that's gitenterprise; github.com is 'project-column', fortunately, both have 'js-project-column'
-
-  const active = { points: 0, unestimated: 0 }, closed = { points: 0, unestimated: 0};
-  for (let column of columns) {
-    const titleElement = column.getElementsByClassName('js-project-column-name')[0];
-    let counter;
-    if (activeColumns.includes(titleElement.innerText)) {
-      counter = active;
-    } else if (closedColumns.includes(titleElement.innerText)) {
-      counter = closed;
-    } else {
-      continue;
-    }
-    counter.points += parseFloat(titleElement.dataset.gpspStoryPoints || 0);
-    counter.unestimated += parseFloat(titleElement.dataset.gpspUnestimated || 0);
-  }
-
-  let summary = `active: ${active.points} pts`;
-  if (active.unestimated > 0) {
-    summary += `, ${active.unestimated} unestimated`;
-  }
-  summary += `; closed: ${closed.points} pts`;
-  if (closed.cunestimated > 0) {
-    summary += `, ${closed.unestimated} unestimated`;
-  }
-
-  // Apply DOM changes:
-  const projectTitle = d.querySelector('.project-header .js-project-hovercard .js-project-name-label');
-  const pointsElement = projectTitle.querySelector('.github-project-story-points') ||
-    projectTitle.appendChild(document.createElement('span'));
-  pointsElement.outerHTML = `<span class="github-project-story-points">(${summary})</span>`;
-};
-
-var addStoryPointsForColumn = (column) => {
-  const columnCards = getColumnCards(column)
-    .map(card => {
+      // compute sum of all labels matching estimate regexp
       const estimates = Array
         .from(card.getElementsByClassName('IssueLabel'))
         .map(label => parseFloat((label.innerText.trim().match(estimateRegEx) || [null, ''])[1]))
         .filter(x => !isNaN(x));
 
-      const estimated = estimates.length > 0;
-      const storyPoints = estimates.reduce((x, y) => x + y, 0);
-
-      return {
-        element: card,
-        estimated,
-        storyPoints
-      };
-    });
-
-  let columnStoryPoints = 0;
-  let columnUnestimated = 0;
-
-  for (let card of columnCards) {
-    columnStoryPoints += card.storyPoints;
-    columnUnestimated += (card.estimated ? 0 : 1);
-  }
-
-  // Apply DOM changes:
-  const columnCountElement = column.getElementsByClassName('js-column-card-count')[0];
-  const titleElement = column.getElementsByClassName('js-project-column-name')[0];
-  columnCountElement.innerHTML = titleWithTotalPoints(columnCards.length, columnStoryPoints, columnUnestimated);
-  titleElement.dataset.gpspStoryPoints = columnStoryPoints;
-  titleElement.dataset.gpspUnestimated = columnUnestimated;
-
-  updateTotalStoryPoints();
-};
-
-var resets = [];
-
-var start = debounce(() => {
-  // Reset
-  for (let reset of resets) {
-    reset();
-  }
-  resets = [];
-  // Projects
-  const projects = d.getElementsByClassName('project-columns-container');
-  if (projects.length > 0) {
-    const project = projects[0];
-    const columns = Array.from(project.getElementsByClassName('js-project-column')); // Was 'col-project-custom', but that's gitenterprise; github.com is 'project-column', fortunately, both have 'js-project-column'
-    for (let column of columns) {
-      const columnArea = Array.from(column.getElementsByClassName('js-project-column-cards'))[0];
-      const addStoryPoints = ((c) => debounce(() => {
-        resetStoryPointsForColumn(c);
-        addStoryPointsForColumn(c);
-        addCardButtonsForColumn(c);
-      }, 50))(column);
-      columnArea.addEventListener('DOMSubtreeModified', addStoryPoints);
-      columnArea.addEventListener('drop', addStoryPoints);
-
-      addStoryPointsForColumn(column);
-      addCardButtonsForColumn(column);
-
-      resets.push(((c) => () => {
-        resetCardButtonsForColumn(c);
-        resetStoryPointsForColumn(c);
-        columnArea.removeEventListener('DOMSubtreeModified', addStoryPoints);
-        columnArea.removeEventListener('drop', addStoryPoints);
-      })(column));
+      const points = estimates.length > 0 ? estimates.reduce((x, y) => x + y, 0) : NaN;
+      result.push({number, points, column, assignees});
     }
   }
-}, 50);
 
-// Hacks to restart the plugin on pushState change
-w.addEventListener('statechange', () => setTimeout(() => {
-  const timelines = d.getElementsByClassName('new-discussion-timeline');
-  if (timelines.length > 0) {
-    const timeline = timelines[0];
-    const startOnce = () => {
-      timeline.removeEventListener('DOMSubtreeModified', startOnce);
-      start();
-    };
-    timeline.addEventListener('DOMSubtreeModified', startOnce);
+  return result;
+};
+
+const addStoryPoints = (acc, issue) => {
+  if (!isNaN(issue.points)) { acc.points += issue.points; }
+  else { acc.unestimated += 1; }
+  return acc;
+}
+
+const aggStoryPoints = (issues, filter) =>
+  issues.filter(filter).reduce(addStoryPoints, { points: 0, unestimated: 0 });
+
+const getOrAppendChild = (parent, cls, newEl, insertBefore = null) => {
+  const matches = parent.getElementsByClassName(cls);
+  if (matches.length > 0) {
+    return matches[0];
+  } else {
+    const el = typeof newEl === 'string' ? document.createElement(newEl) : newEl();
+    el.classList.add(cls);
+    parent.insertBefore(el, insertBefore);
+    return el;
   }
-  start();
-}, 500));
+}
+
+const updateColumnsStoryPoints = (issues) => {
+  const project = document.querySelector('.project-columns-container');
+  const columns = project.querySelectorAll('.js-project-column');
+
+  for (const columnElement of columns) {
+    const { points, unestimated } = aggStoryPoints(issues, i => i.column.element === columnElement);
+
+    // Apply DOM changes:
+    const countEl = columnElement.querySelector('.js-column-card-count');
+    const pointsEl = getOrAppendChild(countEl, 'gpsp-column-points', 'div');
+    pointsEl.innerText = `(${points} pt${unestimated ? `, ${unestimated} unestimated` : ''})`;
+  }
+}
+
+const updateTotalStoryPoints = (issues) => {
+  const active = aggStoryPoints(issues, i => activeColumns.includes(i.column.name));
+  const closed = aggStoryPoints(issues, i => closedColumns.includes(i.column.name));
+
+  const fmt = ({points, unestimated}) =>
+    `${points} pt${unestimated ? `, ${unestimated} unestimated` : ''}`;
+
+  // Apply DOM changes:
+  const projectTitle = document.querySelector('.project-header .js-project-hovercard .js-project-name-label');
+  const pointsElement = getOrAppendChild(projectTitle, 'gpsp-total-points', 'span');
+  pointsElement.innerText = `(active: ${fmt(active)}; closed: ${fmt(closed)})`;
+}
+
+const updateAssigneesStoryPoints = (issues) => {
+  const assigneeMap = {};
+  const activeIssues = issues.filter(i => activeColumns.includes(i.column.name));
+  for (const issue of activeIssues) {
+    for (const assignee of issue.assignees) {
+      if (!(assignee.name in assigneeMap)) {
+        assigneeMap[assignee.name] = { points: 0, unestimated:0, button: assignee.button };
+      }
+      addStoryPoints(assigneeMap[assignee.name], issue);
+    }
+  }
+
+  const assigneeNames = Object.keys(assigneeMap);
+  assigneeNames.sort();
+
+  const projectHeader = document.querySelector('.project-header');
+  const assigneesBar = getOrAppendChild(
+    projectHeader.parentNode, 'gpsp-assignees-bar', 'div', projectHeader.nextSibling);
+
+  assigneesBar.innerHTML = '';
+  assigneeNames.forEach(name => {
+    const el = document.createElement('div');
+    const avatar = document.createElement('span');
+    avatar.classList.add('tooltipped', 'tooltipped-ne', 'tooltipped-multiline');
+    avatar.ariaLabel = name;
+    avatar.insertBefore(assigneeMap[name].button.cloneNode(true), null);
+    el.insertBefore(avatar, null);
+
+    const sp = document.createElement('span');
+    const { points, unestimated } = assigneeMap[name];
+    sp.innerText = `${points} pt${unestimated ? ` + ${unestimated}` : ''}`;
+    el.insertBefore(sp, null);
+
+    assigneesBar.insertBefore(el, null);
+  });
+}
+
+// update story points widgets
+const updateStoryPoints = () => {
+  const issues = extractStoryPoints();
+
+  updateColumnsStoryPoints(issues);
+  updateTotalStoryPoints(issues);
+  updateAssigneesStoryPoints(issues);
+};
+
+const updateStoryPointsHandler = debounce(updateStoryPoints, 100);
+
+const start = () => {
+  const project = document.querySelector('.project-columns-container');
+  const columns = project.querySelectorAll('.js-project-column');
+
+  for (const column of columns) {
+    const addCardButtonsForColumnHandler = debounce(() => addCardButtonsForColumn(column), 100);
+    const columnArea = column.querySelector('.js-project-column-cards');
+    columnArea.addEventListener('DOMSubtreeModified', () => {
+      updateStoryPointsHandler();
+      addCardButtonsForColumnHandler();
+    });
+  }
+};
 
 const addStyle = () => {
   const sheet = document.createElement('style');
@@ -269,16 +257,35 @@ const addStyle = () => {
     .issue-card:hover .gpsp-card-buttons {
       visibility: visible;
     }
-    .github-project-story-points {
+    .gpsp-column-points {
+      display: inline;
+      font-size: xx-small;
+      margin-left: 0.5em;
+    }
+    .gpsp-total-points {
       font-weight: 400;
+    }
+    .gpsp-assignees-bar {
+      margin-top: 5px;
+      padding: 0 24px 0 16px;
+      display: flex;
+      flex-flow: row wrap;
+    }
+    .gpsp-assignees-bar > div {
+      margin: 0 10px 0 0;
+    }
+    .gpsp-assignees-bar > div > span {
+      margin-right: 5px;
     }
   `;
   document.body.appendChild(sheet);
 };
 
-// First start
+addStyle();
 start();
 
-addStyle();
+window.addEventListener('statechange', () => {
+  setTimeout(updateStoryPointsHandler, 500);
+});
 
-})(document, window);
+})();

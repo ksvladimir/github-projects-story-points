@@ -78,6 +78,19 @@ const addProjectButtons = () => {
   });
 };
 
+const hideBotChanges = () => {
+  document.querySelectorAll('.js-timeline-item .TimelineItem').forEach(el => {
+    if (el.classList.contains('gpsp-hidden')) {
+      return;
+    }
+
+    if (el.querySelector(
+      '.TimelineItem-body a.author[href="https://github.com/apps/cyberhaven-project-bot"]')) {
+      el.classList.add('gpsp-hidden');
+    }
+  });
+};
+
 const addStyle = () => {
   const sheet = document.createElement('style');
   sheet.innerHTML = `
@@ -102,22 +115,23 @@ const addStyle = () => {
     form[aria-label="Select projects"] div[data-url]:hover .gpsp-project-buttons div {
       visibility: visible;
     }
+    .gpsp-hidden {
+      display: none;
+    }
   `;
   document.body.appendChild(sheet);
-
 };
 
 addStyle();
 addProjectButtons();
-
-window.addEventListener('statechange', () => setTimeout(() => {
-  addStyle();
-  addProjectButtons();
-}, 500));
+hideBotChanges();
 
 const container = document.querySelector('.js-check-all-container');
 if (container) {
-  container.addEventListener('DOMSubtreeModified', debounce(() => addProjectButtons(), 50));
+  container.addEventListener('DOMSubtreeModified', debounce(() => {
+    addProjectButtons();
+    hideBotChanges();
+  }, 50));
 }
 
 })();
