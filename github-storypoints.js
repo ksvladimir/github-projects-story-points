@@ -91,6 +91,7 @@ const addCardButtonsForColumn = (column) => {
 
 // extract story points for all visible issues
 const extractStoryPoints = () => {
+  console.log('extracting points');
   const result = [];
 
   const project = document.querySelector('.project-columns-container');
@@ -103,19 +104,24 @@ const extractStoryPoints = () => {
 
     const cards = getColumnCards(columnElement);
     for (const card of cards) {
-      const issueNumberEl = card.querySelectorAll('.js-issue-number');
-      if (issueNumberEl.length !== 1) {
+      const issueContainer = card.querySelector(
+        'article > div > div > .js-project-issue-details-container, ' +
+        '.js-issue-note > .js-project-issue-details-container');
+
+      if (!issueContainer) {
         continue; // this is a note
       }
-      const number = issueNumberEl[0].innerText;
-      const assigneeButtons = [...card.querySelectorAll('button[data-card-filter^="assignee:"]')];
+
+      const number = issueContainer.querySelector('.js-issue-number').innerText;
+      const assigneeButtons =
+        [...issueContainer.querySelectorAll('button[data-card-filter^="assignee:"]')];
       const assignees = assigneeButtons.map(el => ({
         name: el.dataset.cardFilter.substring("assignee:".length), button: el,
       }));
 
       // compute sum of all labels matching estimate regexp
       const estimates = Array
-        .from(card.getElementsByClassName('IssueLabel'))
+        .from(issueContainer.getElementsByClassName('IssueLabel'))
         .map(label => parseFloat((label.innerText.trim().match(estimateRegEx) || [null, ''])[1]))
         .filter(x => !isNaN(x));
 
@@ -196,7 +202,8 @@ const updateAssigneesStoryPoints = (issues) => {
 
   assigneesBar.innerHTML = '';
   const span = document.createElement('span');
-  span.setAttribute('title', `Active columns: ${activeColumns.join(', ')}`);
+  span.classList.add('tooltipped', 'tooltipped-s', 'tooltipped-multiline');
+  span.ariaLabel = `Active columns:\n${activeColumns.join('\n')}`;
   span.innerText = 'Active issues:';
   assigneesBar.appendChild(span);
 
