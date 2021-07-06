@@ -195,6 +195,11 @@ const updateAssigneesStoryPoints = (issues) => {
     projectHeader.parentNode, 'gpsp-assignees-bar', 'div', projectHeader.nextSibling);
 
   assigneesBar.innerHTML = '';
+  const span = document.createElement('span');
+  span.setAttribute('title', `Active columns: ${activeColumns.join(', ')}`);
+  span.innerText = 'Active issues:';
+  assigneesBar.appendChild(span);
+
   assigneeNames.forEach(name => {
     const el = document.createElement('div');
     const avatar = document.createElement('span');
@@ -272,7 +277,7 @@ const addStyle = () => {
       flex-flow: row wrap;
     }
     .gpsp-assignees-bar > div {
-      margin: 0 10px 0 0;
+      margin: 0 0 0 10px;
     }
     .gpsp-assignees-bar > div > span {
       margin-right: 5px;
