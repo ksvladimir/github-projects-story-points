@@ -125,7 +125,8 @@ const extractStoryPoints = () => {
         .map(label => parseFloat((label.innerText.trim().match(estimateRegEx) || [null, ''])[1]))
         .filter(x => !isNaN(x));
 
-      const points = estimates.length > 0 ? estimates.reduce((x, y) => x + y, 0) : NaN;
+      const points =
+        estimates.length > 0 ? estimates.reduce((x, y) => x + y, 0) / assignees.length : NaN;
       result.push({number, points, column, assignees});
     }
   }
