@@ -164,7 +164,7 @@ const updateColumnsStoryPoints = (issues) => {
     // Apply DOM changes:
     const countEl = columnElement.querySelector('.js-column-card-count');
     const pointsEl = getOrAppendChild(countEl, 'gpsp-column-points', 'div');
-    pointsEl.innerText = `(${points} pt${unestimated ? `, ${unestimated} unestimated` : ''})`;
+    pointsEl.innerText = `(${points} pt${unestimated ? ` + ${unestimated} unestimated` : ''})`;
   }
 }
 
@@ -173,23 +173,36 @@ const updateTotalStoryPoints = (issues) => {
   const closed = aggStoryPoints(issues, i => closedColumns.includes(i.column.name));
 
   const fmt = ({points, unestimated}) =>
-    `${points} pt${unestimated ? `, ${unestimated} unestimated` : ''}`;
+    `${points} pt${unestimated ? ` + ${unestimated} unestimated` : ''}`;
 
   // Apply DOM changes:
   const projectTitle = document.querySelector('.project-header .js-project-hovercard .js-project-name-label');
   const pointsElement = getOrAppendChild(projectTitle, 'gpsp-total-points', 'span');
-  pointsElement.innerText = `(active: ${fmt(active)}; closed: ${fmt(closed)})`;
+  pointsElement.innerText = `(active: ${fmt(active)} / closed: ${fmt(closed)})`;
 }
+
+let assigneeStoryPointsState = 'active';
 
 const updateAssigneesStoryPoints = (issues) => {
   const assigneeMap = {};
-  const activeIssues = issues.filter(i => activeColumns.includes(i.column.name));
-  for (const issue of activeIssues) {
+  for (const issue of issues) {
+    const status =
+      activeColumns.includes(issue.column.name) ? 'active' :
+      closedColumns.includes(issue.column.name) ? 'closed' : undefined;
+
+    if (status === undefined) {
+      continue;
+    }
+
     for (const assignee of issue.assignees) {
       if (!(assignee.name in assigneeMap)) {
-        assigneeMap[assignee.name] = { points: 0, unestimated:0, button: assignee.button };
+        assigneeMap[assignee.name] = {
+          button: assignee.button,
+          active: { points: 0, unestimated: 0 },
+          closed: { points: 0, unestimated: 0 },
+        };
       }
-      addStoryPoints(assigneeMap[assignee.name], issue);
+      addStoryPoints(assigneeMap[assignee.name][status], issue);
     }
   }
 
@@ -202,10 +215,25 @@ const updateAssigneesStoryPoints = (issues) => {
 
   assigneesBar.innerHTML = '';
   const span = document.createElement('span');
-  span.classList.add('tooltipped', 'tooltipped-s', 'tooltipped-multiline');
-  span.ariaLabel = `Active columns:\n${activeColumns.join('\n')}`;
-  span.innerText = 'Active issues:';
+  span.innerText = ' issues:';
   assigneesBar.appendChild(span);
+
+  const statusSwitch = document.createElement('a');
+  statusSwitch.classList.add('tooltipped', 'tooltipped-se', 'tooltipped-multiline');
+  statusSwitch.ariaLabel =
+    `Active columns:\n${activeColumns.join('\n')}\n\nClosed columns:\n${closedColumns.join('\n')}`;
+  statusSwitch.href = '#';
+  statusSwitch.innerText =
+    assigneeStoryPointsState.charAt(0).toUpperCase() + assigneeStoryPointsState.slice(1);
+  statusSwitch.addEventListener('click', (e) => {
+    const statuses = ['active', 'closed', 'active / closed'];
+    e.preventDefault();
+    assigneeStoryPointsState = statuses[(statuses.indexOf(assigneeStoryPointsState) + 1) % 3];
+    updateAssigneesStoryPoints(extractStoryPoints());
+  });
+  span.prepend(statusSwitch);
+
+  const fmt = ({points, unestimated}) => `${points} pt${unestimated ? ` + ${unestimated}` : ''}`;
 
   assigneeNames.forEach(name => {
     const el = document.createElement('div');
@@ -216,8 +244,11 @@ const updateAssigneesStoryPoints = (issues) => {
     el.insertBefore(avatar, null);
 
     const sp = document.createElement('span');
-    const { points, unestimated } = assigneeMap[name];
-    sp.innerText = `${points} pt${unestimated ? ` + ${unestimated}` : ''}`;
+    const { active, closed } = assigneeMap[name];
+    sp.innerText =
+      assigneeStoryPointsState === 'active' ? `${fmt(active)}` :
+      assigneeStoryPointsState === 'closed' ? `${fmt(closed)}` :
+      `${fmt(active)} / ${fmt(closed)}`;
     el.insertBefore(sp, null);
 
     assigneesBar.insertBefore(el, null);
