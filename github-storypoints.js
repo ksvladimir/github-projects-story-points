@@ -2,7 +2,7 @@
 'use strict';
 
 var estimateRegEx = /^([\d\.]+) pt$/im;
-const activeColumns = ['📅 Planned', '🚧 In progress', '🔬 In QA'];
+const activeColumns = ['📅 Planned', '🚧 In progress', '👀 In review', '🔬 In QA'];
 const closedColumns = ['📦 Done', '✅ Accepted'];
 
 const githubCredentials = new Promise(resolve => {
