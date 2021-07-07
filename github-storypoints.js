@@ -125,8 +125,7 @@ const extractStoryPoints = () => {
         .map(label => parseFloat((label.innerText.trim().match(estimateRegEx) || [null, ''])[1]))
         .filter(x => !isNaN(x));
 
-      const points =
-        estimates.length > 0 ? estimates.reduce((x, y) => x + y, 0) / assignees.length : NaN;
+      const points = estimates.length > 0 ? estimates.reduce((x, y) => x + y, 0) : NaN;
       result.push({number, points, column, assignees});
     }
   }
@@ -195,6 +194,10 @@ const updateAssigneesStoryPoints = (issues) => {
       continue;
     }
 
+    const points = {
+      points: issue.points / issue.assignees.length,
+      unestimated: issue.unestimated / issue.assignees.length,
+    };
     for (const assignee of issue.assignees) {
       if (!(assignee.name in assigneeMap)) {
         assigneeMap[assignee.name] = {
@@ -203,7 +206,7 @@ const updateAssigneesStoryPoints = (issues) => {
           closed: { points: 0, unestimated: 0 },
         };
       }
-      addStoryPoints(assigneeMap[assignee.name][status], issue);
+      addStoryPoints(assigneeMap[assignee.name][status], points);
     }
   }
 
